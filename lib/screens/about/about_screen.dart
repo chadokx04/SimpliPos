@@ -152,7 +152,7 @@ class AboutScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Center(
                 child: Text(
-                  'Developed by: chadokx04:)',
+                  'Developed by: ChadokX:)',
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
