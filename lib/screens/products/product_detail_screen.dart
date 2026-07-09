@@ -124,17 +124,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Column(
                   children: [
                     Center(
-                      child: CircleAvatar(
-                        radius: 48,
-                        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                        backgroundImage: product.photoPath != null &&
-                                File(product.photoPath!).existsSync()
-                            ? FileImage(File(product.photoPath!))
-                            : null,
-                        child: product.photoPath == null
-                            ? const Icon(Icons.inventory_2_outlined, size: 32)
-                            : null,
-                      ),
+                      child: Builder(builder: (context) {
+                        final hasPhoto = product.photoPath != null &&
+                            File(product.photoPath!).existsSync();
+                        final heroTag = 'product-photo-${product.id}';
+                        return GestureDetector(
+                          onTap: hasPhoto
+                              ? () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => _PhotoViewerScreen(
+                                        photoPath: product.photoPath!,
+                                        heroTag: heroTag,
+                                      ),
+                                    ),
+                                  )
+                              : null,
+                          child: Hero(
+                            tag: heroTag,
+                            child: CircleAvatar(
+                              radius: 48,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.secondaryContainer,
+                              backgroundImage: hasPhoto
+                                  ? FileImage(File(product.photoPath!))
+                                  : null,
+                              child: hasPhoto
+                                  ? null
+                                  : const Icon(Icons.inventory_2_outlined, size: 32),
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                     const SizedBox(height: 20),
                     _InfoRow(label: 'SKU', value: product.sku),
@@ -203,6 +223,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _PhotoViewerScreen extends StatelessWidget {
+  const _PhotoViewerScreen({required this.photoPath, required this.heroTag});
+
+  final String photoPath;
+  final Object heroTag;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: Hero(
+          tag: heroTag,
+          child: InteractiveViewer(
+            maxScale: 4,
+            child: Image.file(File(photoPath)),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -7,15 +7,25 @@ import '../utils/constants.dart';
 import '../utils/currency_formatter.dart';
 
 class ProductTile extends StatelessWidget {
-  const ProductTile({super.key, required this.product, required this.onTap});
+  const ProductTile({
+    super.key,
+    required this.product,
+    required this.onTap,
+    this.showPrice = true,
+  });
 
   final Product product;
   final VoidCallback onTap;
+  final bool showPrice;
 
   @override
   Widget build(BuildContext context) {
     final isLowStock = product.quantity <= kLowStockThreshold;
     final scheme = Theme.of(context).colorScheme;
+    final qtyStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: isLowStock ? scheme.error : scheme.onSurfaceVariant,
+          fontWeight: isLowStock ? FontWeight.bold : null,
+        );
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -28,24 +38,26 @@ class ProductTile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              formatCurrency(product.unitPrice),
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Qty: ${product.quantity}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isLowStock ? scheme.error : scheme.onSurfaceVariant,
-                    fontWeight: isLowStock ? FontWeight.bold : null,
+        trailing: showPrice
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${formatCurrency(product.unitPrice)} | '
+                    '${formatCurrency(product.sellingPrice)}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-            ),
-          ],
-        ),
+                  const SizedBox(height: 4),
+                  Text('Qty: ${product.quantity}', style: qtyStyle),
+                ],
+              )
+            : Text('Qty: ${product.quantity}', style: qtyStyle),
       ),
     );
   }

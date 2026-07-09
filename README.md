@@ -23,12 +23,16 @@ backend to run.
   receipt, and hold sales to resume later.
 - **Products & Categories** — full CRUD with photos, barcodes, and
   category-based organization. Categories in use can't be deleted out from
-  under their products.
+  under their products. Searchable and filterable by category, with a
+  tap-to-zoom photo viewer on the detail screen.
 - **Stock In / Stock Out** — record inventory movements with full history per
   product (cascades away cleanly if the product is deleted).
 - **Barcode scanning** — use the camera to look up or add products and to
   ring up items at checkout.
-- **Reports** — sales reports over a chosen date range, exportable to Excel.
+- **Reports** — sales reports and receipts over a chosen date range, plus an
+  Inventory Stock report (searchable by name/SKU/barcode, filterable by
+  category, ordered by category then product name) — all exportable to
+  Excel.
 - **Backup & Restore** — export the database and product photos to a single
   zip file, and restore from one. Manual and auto backups are listed in
   separate tabs; auto backup runs on a user-configurable interval (seconds or
@@ -46,12 +50,12 @@ backend to run.
 | Language / UI       | Flutter, Material 3                       |
 | State management    | [`provider`](https://pub.dev/packages/provider) |
 | Navigation          | [`go_router`](https://pub.dev/packages/go_router) (`StatefulShellRoute` bottom-nav shell) |
-| Local storage       | [`sqflite`](https://pub.dev/packages/sqflite) |
+| Local storage       | [`sqflite`](https://pub.dev/packages/sqflite) (mobile), [`sqflite_common_ffi`](https://pub.dev/packages/sqflite_common_ffi) (desktop), [`sqflite_common_ffi_web`](https://pub.dev/packages/sqflite_common_ffi_web) (web) |
 | Barcode scanning    | [`mobile_scanner`](https://pub.dev/packages/mobile_scanner) |
 | Backup format        | zip (db + photos) via [`archive`](https://pub.dev/packages/archive) |
 | Report export       | [`excel`](https://pub.dev/packages/excel) |
 
-The app targets Android, iOS, Windows, macOS, and Linux from one codebase.
+The app targets Android, iOS, Windows, macOS, Linux, and Web from one codebase.
 
 ## Getting started
 
@@ -86,6 +90,17 @@ App icons and the splash screen are generated from the images in
 ```bash
 dart run flutter_launcher_icons
 dart run flutter_native_splash:create
+```
+
+### Web SQLite setup
+
+The web build needs `sqlite3.wasm` and `sqflite_sw.js` in `web/` (used by
+`sqflite_common_ffi_web`) — without them, every screen hangs on its loading
+indicator forever instead of erroring. These are committed to the repo, but
+if they're ever missing (e.g. a fresh `web/` folder), regenerate with:
+
+```bash
+dart run sqflite_common_ffi_web:setup
 ```
 
 ## Project structure

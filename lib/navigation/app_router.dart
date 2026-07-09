@@ -18,6 +18,7 @@ import '../screens/pos/settings_screen.dart';
 import '../screens/products/product_detail_screen.dart';
 import '../screens/products/product_form_screen.dart';
 import '../screens/products/products_screen.dart';
+import '../screens/reports/inventory_stock_report_screen.dart';
 import '../screens/reports/reports_screen.dart';
 import '../screens/reports/sales_receipts_screen.dart';
 import '../screens/reports/sales_report_screen.dart';
@@ -146,6 +147,11 @@ final GoRouter appRouter = GoRouter(
       path: '/reports/receipts',
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const SalesReceiptsScreen(),
+    ),
+    GoRoute(
+      path: '/reports/inventory-stock',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const InventoryStockReportScreen(),
     ),
     GoRoute(
       path: '/pos/held',
