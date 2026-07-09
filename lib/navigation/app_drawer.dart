@@ -200,6 +200,7 @@ class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Delete all data?'),
+      scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

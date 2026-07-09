@@ -105,6 +105,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // No text input lives on this screen, so it never needs to resize for
+      // a keyboard. Without this, the reset flow's confirmation TextField
+      // (in the drawer, shown over this screen) leaves the keyboard
+      // mid-close while the next dialog appears, and the shrunken height
+      // overflows the fixed-height summary grid above the Expanded list.
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Dashboard'),
         leading: IconButton(

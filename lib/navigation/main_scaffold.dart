@@ -24,6 +24,13 @@ class MainScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       key: mainScaffoldKey,
+      // No text input lives directly on this outer shell — only the tab
+      // screens' own (inner) Scaffolds do, and each of those already
+      // decides its own keyboard-resize behavior. Without this, a keyboard
+      // opened by an overlay dialog (e.g. the drawer's Reset confirmation)
+      // still shrinks this Scaffold's body height, overflowing whichever
+      // tab is visible behind the dialog.
+      resizeToAvoidBottomInset: false,
       drawer: const AppDrawer(),
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
