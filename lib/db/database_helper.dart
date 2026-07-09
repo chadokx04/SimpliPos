@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'database_factory_io.dart'
+    if (dart.library.html) 'database_factory_web.dart';
+
 /// Singleton wrapper around the app's single SQLite database.
 ///
 /// Schema policy (documented since it isn't obvious from the code alone):
@@ -24,11 +27,17 @@ class DatabaseHelper {
   static const _dbName = 'stockflow.db';
   static const _dbVersion = 4;
 
-  Database? _database;
+  // Memoizes the *future*, not just the resolved Database — the getter is
+  // called concurrently by every provider's startup load, and caching only
+  // the resolved value leaves a window where each of those calls sees null
+  // and independently kicks off its own _initDatabase() (each one flipping
+  // the global sqflite databaseFactory again, and opening the file
+  // redundantly). Caching the in-flight future closes that window: everyone
+  // who calls in before it resolves awaits the same one.
+  Future<Database>? _databaseFuture;
 
-  Future<Database> get database async {
-    _database ??= await _initDatabase();
-    return _database!;
+  Future<Database> get database {
+    return _databaseFuture ??= _initDatabase();
   }
 
   /// The database file's path on disk, without opening it — used by
@@ -43,9 +52,10 @@ class DatabaseHelper {
   /// [database] transparently reopens it — nothing else needs to know this
   /// happened.
   Future<void> close() async {
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
+    final future = _databaseFuture;
+    if (future != null) {
+      _databaseFuture = null;
+      await (await future).close();
     }
   }
 
@@ -61,6 +71,7 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
+    configureDatabaseFactory();
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
     return openDatabase(
