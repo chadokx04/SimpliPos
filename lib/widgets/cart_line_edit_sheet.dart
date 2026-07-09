@@ -10,11 +10,16 @@ class CartLineEditSheet extends StatefulWidget {
     required this.title,
     required this.initialValue,
     this.allowDecimal = false,
+    this.maxValue,
   });
 
   final String title;
   final double initialValue;
   final bool allowDecimal;
+
+  /// Upper bound for the entered value (e.g. available stock when editing
+  /// a quantity). `null` means no limit.
+  final double? maxValue;
 
   @override
   State<CartLineEditSheet> createState() => _CartLineEditSheetState();
@@ -50,6 +55,8 @@ class _CartLineEditSheetState extends State<CartLineEditSheet> {
   @override
   Widget build(BuildContext context) {
     final value = _parsedValue;
+    final max = widget.maxValue;
+    final exceedsMax = value != null && max != null && value > max;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -62,6 +69,19 @@ class _CartLineEditSheetState extends State<CartLineEditSheet> {
               _buffer.isEmpty ? '0' : _buffer,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            if (max != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                exceedsMax
+                    ? 'Only ${max.toStringAsFixed(0)} available'
+                    : '${max.toStringAsFixed(0)} available',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: exceedsMax
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
             const SizedBox(height: 16),
             NumericKeypad(
               onDigit: _appendDigit,
@@ -72,7 +92,7 @@ class _CartLineEditSheetState extends State<CartLineEditSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: value != null && value > 0
+                onPressed: value != null && value > 0 && !exceedsMax
                     ? () => Navigator.of(context).pop(value)
                     : null,
                 child: const Text('Confirm'),

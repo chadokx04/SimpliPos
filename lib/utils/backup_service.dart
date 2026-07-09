@@ -14,11 +14,17 @@ class BackupInfo {
   final DateTime createdAt;
   final int sizeBytes;
 
+  /// True for a backup [BackupService.createBackup] made with `auto: true`
+  /// (detected from the `autobackup_` filename prefix) — lets the UI split
+  /// manual and auto backups into separate tabs.
+  final bool isAuto;
+
   const BackupInfo({
     required this.path,
     required this.fileName,
     required this.createdAt,
     required this.sizeBytes,
+    required this.isAuto,
   });
 }
 
@@ -42,24 +48,28 @@ class BackupService {
     return dir;
   }
 
-  /// Matches this class's own `backup_<timestamp>.zip` naming (see
-  /// [createBackup]) so the exact creation instant can be read back from
-  /// the filename — see [listBackups] for why that's preferred over the
-  /// file's filesystem mtime.
+  /// Matches this class's own `backup_<timestamp>.zip` / auto backup's
+  /// `autobackup_<timestamp>.zip` naming (see [createBackup]) so the exact
+  /// creation instant — and whether it's an auto backup — can be read back
+  /// from the filename alone. See [listBackups] for why the timestamp is
+  /// preferred over the file's filesystem mtime.
   static final _ownFileNamePattern = RegExp(
-    r'^backup_(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d+)\.zip$',
+    r'^(auto)?backup_(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d+)\.zip$',
   );
 
   static DateTime? _createdAtFromFileName(String fileName) {
     final match = _ownFileNamePattern.firstMatch(fileName);
     if (match == null) return null;
-    final date = match.group(1)!;
-    final hour = match.group(2)!;
-    final minute = match.group(3)!;
-    final second = match.group(4)!;
-    final micros = match.group(5)!;
+    final date = match.group(2)!;
+    final hour = match.group(3)!;
+    final minute = match.group(4)!;
+    final second = match.group(5)!;
+    final micros = match.group(6)!;
     return DateTime.tryParse('${date}T$hour:$minute:$second.$micros');
   }
+
+  static bool _isAutoFileName(String fileName) =>
+      _ownFileNamePattern.firstMatch(fileName)?.group(1) == 'auto';
 
   static Future<List<BackupInfo>> listBackups() async {
     final dir = await _backupsDir();
@@ -79,6 +89,7 @@ class BackupService {
           // that doesn't follow this naming (e.g. user-renamed).
           createdAt: _createdAtFromFileName(fileName) ?? stat.modified,
           sizeBytes: stat.size,
+          isAuto: _isAutoFileName(fileName),
         ));
       }
     }
@@ -134,7 +145,12 @@ class BackupService {
   /// committed and nothing else writes to it mid-copy; the next normal DB
   /// access afterward transparently reopens it. Returns the new backup's
   /// path.
-  static Future<String> createBackup() async {
+  ///
+  /// [auto] tags the file as an auto backup (`autobackup_` prefix instead
+  /// of `backup_`) so [listBackups] can tell it apart — see
+  /// [pruneAutoBackups], which callers should run right after an auto
+  /// backup to enforce the retention cap.
+  static Future<String> createBackup({bool auto = false}) async {
     await DatabaseHelper.instance.close();
 
     final dbFile = File(await DatabaseHelper.instance.getDatabaseFilePath());
@@ -143,7 +159,8 @@ class BackupService {
 
     final timestamp =
         DateTime.now().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
-    final zipPath = p.join(backupsDir.path, 'backup_$timestamp.zip');
+    final prefix = auto ? 'autobackup_' : 'backup_';
+    final zipPath = p.join(backupsDir.path, '$prefix$timestamp.zip');
 
     final encoder = ZipFileEncoder();
     encoder.create(zipPath);
@@ -158,6 +175,20 @@ class BackupService {
     await encoder.close();
 
     return zipPath;
+  }
+
+  /// Enforces auto backup's retention cap: at most [max] auto backups are
+  /// kept. Modeled as a bounded stack — each new auto backup is a push onto
+  /// the top (newest); once the stack holds more than [max] entries, the
+  /// ones at the bottom (oldest) are popped off and deleted. Manual
+  /// backups are untouched regardless of count.
+  static Future<void> pruneAutoBackups(int max) async {
+    final autoBackups = (await listBackups()).where((b) => b.isAuto).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    if (autoBackups.length <= max) return;
+    for (final overflow in autoBackups.skip(max)) {
+      await deleteBackup(overflow.path);
+    }
   }
 
   /// Extracts [backupPath] into a scratch directory, then overwrites the

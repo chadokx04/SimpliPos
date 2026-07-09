@@ -30,9 +30,13 @@ backend to run.
   ring up items at checkout.
 - **Reports** — sales reports over a chosen date range, exportable to Excel.
 - **Backup & Restore** — export the database and product photos to a single
-  zip file, and restore from one.
+  zip file, and restore from one. Manual and auto backups are listed in
+  separate tabs; auto backup runs on a user-configurable interval (seconds or
+  minutes) and keeps only the most recent 10, evicting the oldest.
 - **App Lock** — optional 6-digit PIN gate on launch (hashed at rest, never
   stored in plain text).
+- **About** — app branding, a short description, and a version history of
+  shipped features, reachable from the drawer.
 - **Light & dark themes**, Material 3 throughout.
 
 ## Tech stack
@@ -103,7 +107,8 @@ lib/
 │   ├── pos/
 │   ├── reports/
 │   ├── backup/
-│   └── app_lock/
+│   ├── app_lock/
+│   └── about/
 ├── widgets/                  # Shared, reusable UI components
 └── utils/                    # Constants, formatters, backup/export services
 ```

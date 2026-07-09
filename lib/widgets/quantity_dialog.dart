@@ -4,9 +4,17 @@ import 'package:flutter/material.dart';
 /// `Navigator.pop` (or `null` if cancelled/dismissed). Used by the POS
 /// product grid and barcode scanner to ask how many units to add.
 class QuantityDialog extends StatefulWidget {
-  const QuantityDialog({super.key, required this.productName});
+  const QuantityDialog({
+    super.key,
+    required this.productName,
+    this.maxQuantity,
+  });
 
   final String productName;
+
+  /// Upper bound for the entered quantity — the product's available stock
+  /// minus whatever is already in the cart. `null` means no limit.
+  final int? maxQuantity;
 
   @override
   State<QuantityDialog> createState() => _QuantityDialogState();
@@ -23,10 +31,20 @@ class _QuantityDialogState extends State<QuantityDialog> {
 
   int? get _quantity => int.tryParse(_controller.text);
 
-  void _confirm() {
+  bool get _exceedsMax {
     final quantity = _quantity;
-    if (quantity == null || quantity <= 0) return;
-    Navigator.of(context).pop(quantity);
+    final max = widget.maxQuantity;
+    return quantity != null && max != null && quantity > max;
+  }
+
+  bool get _isValid {
+    final quantity = _quantity;
+    return quantity != null && quantity > 0 && !_exceedsMax;
+  }
+
+  void _confirm() {
+    if (!_isValid) return;
+    Navigator.of(context).pop(_quantity);
   }
 
   @override
@@ -37,9 +55,14 @@ class _QuantityDialogState extends State<QuantityDialog> {
         controller: _controller,
         autofocus: true,
         keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Quantity',
-          border: OutlineInputBorder(),
+          border: const OutlineInputBorder(),
+          helperText: widget.maxQuantity != null
+              ? '${widget.maxQuantity} available'
+              : null,
+          errorText:
+              _exceedsMax ? 'Only ${widget.maxQuantity} available' : null,
         ),
         onChanged: (_) => setState(() {}),
         onSubmitted: (_) => _confirm(),
@@ -50,7 +73,7 @@ class _QuantityDialogState extends State<QuantityDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _quantity != null && _quantity! > 0 ? _confirm : null,
+          onPressed: _isValid ? _confirm : null,
           child: const Text('Add'),
         ),
       ],

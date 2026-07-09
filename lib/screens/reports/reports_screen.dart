@@ -31,6 +31,16 @@ class ReportsScreen extends StatelessWidget {
               onTap: () => context.push('/reports/sales'),
             ),
           ),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('Sales Receipts'),
+              subtitle: const Text('Receipts for a chosen date range'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/reports/receipts'),
+            ),
+          ),
         ],
       ),
     );

@@ -24,9 +24,28 @@ class _PosBrowseScreenState extends State<PosBrowseScreen> {
   int? _selectedCategoryId;
 
   Future<void> _handleProductTap(Product product) async {
+    // Cap at stock minus what the cart already holds, so repeated adds of
+    // the same product can never exceed what's actually available.
+    final remaining = product.quantity -
+        context.read<PosProvider>().quantityInCart(product.id!);
+    if (remaining <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'All ${product.quantity} in stock of ${product.name} '
+            'are already in the cart',
+          ),
+        ),
+      );
+      return;
+    }
+
     final quantity = await showDialog<int>(
       context: context,
-      builder: (_) => QuantityDialog(productName: product.name),
+      builder: (_) => QuantityDialog(
+        productName: product.name,
+        maxQuantity: remaining,
+      ),
     );
     if (quantity == null || !mounted) return;
 

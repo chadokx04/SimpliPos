@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/product.dart';
 import '../../models/sale.dart';
 import '../../navigation/main_scaffold.dart';
 import '../../providers/pos_provider.dart';
@@ -86,11 +87,25 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  /// Current stock for [productId] from the loaded product list, or `null`
+  /// if the product no longer exists (checkout still validates stock then).
+  int? _availableQuantity(List<Product> products, int productId) {
+    for (final product in products) {
+      if (product.id == productId) return product.quantity;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final posProvider = context.watch<PosProvider>();
     final settings = context.watch<SettingsProvider>();
+    final products = context.watch<ProductProvider>().products;
     final totals = posProvider.computeTotals(settings.taxRatePercent);
+    final hasStockIssue = posProvider.lines.any((line) {
+      final available = _availableQuantity(products, line.productId);
+      return available != null && line.quantity > available;
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -124,6 +139,19 @@ class _PosScreenState extends State<PosScreen> {
       ),
       body: Column(
         children: [
+          if (hasStockIssue)
+            Container(
+              width: double.infinity,
+              color: Theme.of(context).colorScheme.errorContainer,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Some items are out of stock. Restock or remove them to checkout.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           Expanded(
             child: posProvider.lines.isEmpty
                 ? const Center(child: Text('Cart is empty'))
@@ -133,6 +161,8 @@ class _PosScreenState extends State<PosScreen> {
                       final line = posProvider.lines[index];
                       return CartLineTile(
                         line: line,
+                        availableQuantity:
+                            _availableQuantity(products, line.productId),
                         onQuantityChanged: (q) =>
                             posProvider.updateLineQuantity(line.productId, q),
                         onPriceChanged: (p) =>
@@ -152,6 +182,7 @@ class _PosScreenState extends State<PosScreen> {
             onHold: _handleHold,
             onCheckout: _handleCheckout,
             canSubmit: posProvider.lines.isNotEmpty,
+            canCheckout: !hasStockIssue,
           ),
         ],
       ),
@@ -201,7 +232,13 @@ class _PaymentDialogState extends State<_PaymentDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Total: ${formatCurrency(widget.total)}'),
+          Text(
+            'Total: ${formatCurrency(widget.total)}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           SegmentedButton<PaymentMethod>(
             segments: const [
@@ -228,6 +265,10 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               _change != null && _change! >= 0
                   ? 'Change: ${formatCurrency(_change!)}'
                   : 'Enter an amount ≥ total',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ],

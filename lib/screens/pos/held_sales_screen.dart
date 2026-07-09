@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/sale.dart';
 import '../../providers/pos_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../utils/currency_formatter.dart';
 
 class HeldSalesScreen extends StatefulWidget {
@@ -24,6 +25,11 @@ class _HeldSalesScreenState extends State<HeldSalesScreen> {
   }
 
   Future<void> _resume(Sale sale) async {
+    // Refresh stock first so the POS screen's out-of-stock check (which
+    // reads from ProductProvider's cache) reflects reality even if this
+    // held sale has been sitting untouched since before a stock change.
+    await context.read<ProductProvider>().loadProducts();
+    if (!mounted) return;
     await context.read<PosProvider>().resume(sale.id!);
     if (mounted) context.pop();
   }

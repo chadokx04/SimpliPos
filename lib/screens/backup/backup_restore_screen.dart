@@ -9,8 +9,11 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../navigation/restart_widget.dart';
+import '../../providers/auto_backup_provider.dart';
 import '../../providers/pos_provider.dart';
 import '../../utils/backup_service.dart';
+import '../../utils/constants.dart';
+import '../../widgets/auto_backup_interval_sheet.dart';
 
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -19,14 +22,28 @@ class BackupRestoreScreen extends StatefulWidget {
   State<BackupRestoreScreen> createState() => _BackupRestoreScreenState();
 }
 
-class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
+class _BackupRestoreScreenState extends State<BackupRestoreScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   late Future<List<BackupInfo>> _future;
   bool _isWorking = false;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _future = BackupService.listBackups();
+    // The auto backup timer keeps running (and bumping runCount) even while
+    // this screen isn't the one triggering it — refresh the list whenever
+    // it does, so the Auto Backup tab doesn't need a manual pull-to-refresh.
+    context.read<AutoBackupProvider>().addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    context.read<AutoBackupProvider>().removeListener(_refresh);
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _refresh() {
@@ -228,20 +245,113 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     if (mounted) _refresh();
   }
 
+  Future<void> _pickInterval(AutoBackupProvider autoBackup) async {
+    final seconds = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => AutoBackupIntervalSheet(initialSeconds: autoBackup.intervalSeconds),
+    );
+    if (seconds != null) await autoBackup.setIntervalSeconds(seconds);
+  }
+
+  String _formatInterval(int seconds) {
+    if (seconds >= 60 && seconds % 60 == 0) {
+      final minutes = seconds ~/ 60;
+      return '$minutes minute${minutes == 1 ? '' : 's'}';
+    }
+    return '$seconds second${seconds == 1 ? '' : 's'}';
+  }
+
   String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  Widget _buildBackupList(List<BackupInfo> backups, DateFormat dateFormat, String emptyText) {
+    if (backups.isEmpty) {
+      return Center(child: Text(emptyText));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: backups.length,
+      itemBuilder: (context, index) {
+        final backup = backups[index];
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: Text(dateFormat.format(backup.createdAt)),
+                subtitle: Text(_formatSize(backup.sizeBytes)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.share_outlined),
+                      tooltip: 'Share',
+                      onPressed: _isWorking ? null : () => _shareBackup(backup),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.download_outlined),
+                      tooltip: 'Save to device',
+                      onPressed: _isWorking ? null : () => _downloadBackup(backup),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Delete',
+                      onPressed: _isWorking ? null : () => _confirmDelete(backup),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: const CircleBorder(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: _isWorking ? null : () => _confirmRestore(backup),
+                      child: const Text('Restore'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat.yMMMd().add_jm();
+    final dateFormat = DateFormat.yMMMd().add_jms();
+    final autoBackup = context.watch<AutoBackupProvider>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Backup & Restore')),
       body: Column(
         children: [
+          SwitchListTile(
+            title: const Text('Auto Backup'),
+            subtitle: Text(
+              'Back up automatically every ${_formatInterval(autoBackup.intervalSeconds)}, '
+              'keeping the last $kAutoBackupMaxCount',
+            ),
+            value: autoBackup.enabled,
+            onChanged: (value) => autoBackup.setEnabled(value),
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Auto Backup Interval'),
+            subtitle: Text(_formatInterval(autoBackup.intervalSeconds)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _pickInterval(autoBackup),
+          ),
+          const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -278,64 +388,33 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final backups = snapshot.data!;
-                if (backups.isEmpty) {
-                  return const Center(child: Text('No backups yet'));
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: backups.length,
-                  itemBuilder: (context, index) {
-                    final backup = backups[index];
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.archive_outlined),
-                            title: Text(dateFormat.format(backup.createdAt)),
-                            subtitle: Text(_formatSize(backup.sizeBytes)),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.share_outlined),
-                                  tooltip: 'Share',
-                                  onPressed: _isWorking ? null : () => _shareBackup(backup),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.download_outlined),
-                                  tooltip: 'Save to device',
-                                  onPressed:
-                                      _isWorking ? null : () => _downloadBackup(backup),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline),
-                                  tooltip: 'Delete',
-                                  onPressed: _isWorking ? null : () => _confirmDelete(backup),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                    shape: const CircleBorder(),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                FilledButton(
-                                  onPressed:
-                                      _isWorking ? null : () => _confirmRestore(backup),
-                                  child: const Text('Restore'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                final manualBackups = backups.where((b) => !b.isAuto).toList();
+                final autoBackups = backups.where((b) => b.isAuto).toList();
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildBackupList(manualBackups, dateFormat, 'No backups yet'),
+                    _buildBackupList(
+                      autoBackups,
+                      dateFormat,
+                      'No auto backups yet — turn on Auto Backup above',
+                    ),
+                  ],
                 );
               },
+            ),
+          ),
+          ColoredBox(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: SafeArea(
+              top: false,
+              child: TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Manual'),
+                  Tab(text: 'Auto Backup'),
+                ],
+              ),
             ),
           ),
         ],

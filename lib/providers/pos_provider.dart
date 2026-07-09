@@ -135,6 +135,13 @@ class PosProvider extends ChangeNotifier {
     await prefs.setString(kPosCartStatePrefsKey, jsonEncode(state));
   }
 
+  /// Units of [productId] already in the cart (0 if absent) — lets quantity
+  /// inputs cap what can still be added against the product's stock.
+  int quantityInCart(int productId) {
+    final index = _lines.indexWhere((l) => l.productId == productId);
+    return index == -1 ? 0 : _lines[index].quantity;
+  }
+
   void addOrIncrementProduct(Product product, {int quantity = 1}) {
     final index = _lines.indexWhere((l) => l.productId == product.id);
     if (index == -1) {
@@ -314,6 +321,19 @@ class PosProvider extends ChangeNotifier {
   }) {
     final toExclusive = _dateOnly(to.add(const Duration(days: 1)));
     return _db.getSalesSummaryInRange(_dateOnly(from), toExclusive);
+  }
+
+  /// Sales Receipts: completed sales with [from]/[to] both treated as whole
+  /// calendar days, inclusive on both ends, newest first. Each [Sale]
+  /// carries its total units sold in [Sale.itemCount].
+  Future<List<Sale>> getCompletedSalesInRange({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final toExclusive = _dateOnly(to.add(const Duration(days: 1)));
+    final rows =
+        await _db.getCompletedSalesInRange(_dateOnly(from), toExclusive);
+    return rows.map(Sale.fromMap).toList();
   }
 
   List<Map<String, dynamic>> _buildItemRows() {

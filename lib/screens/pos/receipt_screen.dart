@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -79,6 +82,25 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     return buffer.toString();
   }
 
+  /// Opens the OS's native "Save As" document picker, same mechanism as
+  /// Backup & Restore and the Sales Report export — a real file write via
+  /// Storage Access Framework, not a share action.
+  Future<void> _downloadReceipt(_ReceiptData data) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await FileSaver.instance.saveAs(
+        name: 'receipt_${widget.saleId}',
+        bytes: utf8.encode(_formatReceipt(data)),
+        fileExtension: 'txt',
+        mimeType: MimeType.text,
+      );
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,6 +164,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 ),
                 icon: const Icon(Icons.share),
                 label: const Text('Share Receipt'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => _downloadReceipt(data),
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Download Receipt'),
               ),
             ],
           );

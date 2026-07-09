@@ -448,6 +448,23 @@ class DatabaseHelper {
     ''', [saleId]);
   }
 
+  /// Completed sales in `[from, toExclusive)` for the Sales Receipts
+  /// report, newest first, each carrying its total units sold as
+  /// `item_count`. Range bounds are bare `yyyy-MM-dd` strings — see
+  /// [getSaleItemsInRange]'s doc for why that makes both days inclusive.
+  Future<List<Map<String, dynamic>>> getCompletedSalesInRange(
+    String from,
+    String toExclusive,
+  ) async {
+    final db = await database;
+    return db.rawQuery('''
+      SELECT s.*, (SELECT COALESCE(SUM(si.quantity), 0) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
+      FROM sales s
+      WHERE s.status = 'completed' AND s.timestamp >= ? AND s.timestamp < ?
+      ORDER BY s.timestamp DESC
+    ''', [from, toExclusive]);
+  }
+
   /// Sold line items for the Sales Report, scoped to completed sales whose
   /// timestamp falls in `[from, toExclusive)` — both plain `yyyy-MM-dd`
   /// strings. A bare date sorts lexicographically before any timestamp on

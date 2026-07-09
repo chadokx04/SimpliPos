@@ -65,6 +65,7 @@ dependencies:
   file_picker: ">=12.0.0-beta.1 <13.0.0"
   file_saver: ^0.4.0
   excel: ^4.0.6
+  package_info_plus: ^10.2.0
 
 dev_dependencies:
   flutter_test:
@@ -96,10 +97,21 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#FFFFFF"
   image: assets/branding/splash_logo.png
+  color_dark: "#121212"
+  image_dark: assets/branding/splash_logo.png
   android_12:
-    image: assets/branding/app_icon_foreground.png
+    # The white disc is baked into the image (see gen_dark_splash.ps1)
+    # rather than set via icon_background_color, whose shape is
+    # OEM-dependent and renders as a square on some devices.
+    image: assets/branding/splash_icon.png
     color: "#FFFFFF"
-    icon_background_color: "#FFFFFF"
+    # Android 12+ draws the splash itself and only allows a circular-masked
+    # icon plus this bottom "branding" slot — text can't sit next to the
+    # icon, so the name/tagline (cropped from splash_logo.png) goes here.
+    branding: assets/branding/splash_branding.png
+    color_dark: "#121212"
+    image_dark: assets/branding/splash_icon.png
+    branding_dark: assets/branding/splash_branding.png
   android: true
   ios: true
   web: false
