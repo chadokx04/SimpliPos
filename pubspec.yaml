@@ -66,6 +66,9 @@ dependencies:
   file_saver: ^0.4.0
   excel: ^4.0.6
   package_info_plus: ^10.2.0
+  sqflite_common_ffi: ^2.4.2
+  sqflite_common_ffi_web: ^1.1.2
+  sqflite_common: ^2.5.11
 
 dev_dependencies:
   flutter_test:
@@ -93,6 +96,12 @@ flutter_launcher_icons:
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/branding/app_icon_foreground.png"
+  windows:
+    generate: true
+  web:
+    generate: true
+    background_color: "#FFFFFF"
+    theme_color: "#FFFFFF"
 
 flutter_native_splash:
   color: "#FFFFFF"
