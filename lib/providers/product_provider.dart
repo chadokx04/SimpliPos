@@ -13,15 +13,20 @@ class ProductProvider extends ChangeNotifier {
   bool _isLoading = false;
   String _searchQuery = '';
   ProductSortOption _sortOption = ProductSortOption.name;
+  int? _categoryFilter;
 
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   ProductSortOption get sortOption => _sortOption;
+  int? get categoryFilter => _categoryFilter;
 
   List<Product> get products => _products;
 
   List<Product> get filteredProducts {
     var result = _products;
+    if (_categoryFilter != null) {
+      result = result.where((p) => p.categoryId == _categoryFilter).toList();
+    }
     if (_searchQuery.trim().isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       result = result.where((p) {
@@ -54,6 +59,11 @@ class ProductProvider extends ChangeNotifier {
 
   void setSortOption(ProductSortOption option) {
     _sortOption = option;
+    notifyListeners();
+  }
+
+  void setCategoryFilter(int? categoryId) {
+    _categoryFilter = categoryId;
     notifyListeners();
   }
 

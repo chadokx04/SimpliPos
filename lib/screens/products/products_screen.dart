@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../navigation/main_scaffold.dart';
+import '../../providers/category_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/product_tile.dart';
 
@@ -57,60 +58,98 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(64),
+          preferredSize: const Size.fromHeight(120),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, SKU, or barcode',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by name, SKU, or barcode',
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          suffixIcon: _searchController.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    context
+                                        .read<ProductProvider>()
+                                        .setSearchQuery('');
+                                    setState(() {});
+                                  },
+                                ),
+                        ),
+                        onChanged: (value) {
+                          context.read<ProductProvider>().setSearchQuery(value);
+                          setState(() {});
+                        },
                       ),
-                      suffixIcon: _searchController.text.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                context.read<ProductProvider>().setSearchQuery('');
-                                setState(() {});
-                              },
-                            ),
                     ),
-                    onChanged: (value) {
-                      context.read<ProductProvider>().setSearchQuery(value);
-                      setState(() {});
-                    },
-                  ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<ProductSortOption>(
+                      tooltip: 'Sort by',
+                      icon: const Icon(Icons.sort),
+                      onSelected: (option) =>
+                          context.read<ProductProvider>().setSortOption(option),
+                      itemBuilder: (context) {
+                        final current =
+                            context.read<ProductProvider>().sortOption;
+                        return const [
+                          MapEntry(ProductSortOption.name, 'Name'),
+                          MapEntry(ProductSortOption.category, 'Category'),
+                          MapEntry(ProductSortOption.quantity, 'Quantity'),
+                          MapEntry(ProductSortOption.price, 'Price'),
+                        ]
+                            .map((entry) => CheckedPopupMenuItem(
+                                  value: entry.key,
+                                  checked: entry.key == current,
+                                  child: Text(entry.value),
+                                ))
+                            .toList();
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                PopupMenuButton<ProductSortOption>(
-                  tooltip: 'Sort by',
-                  icon: const Icon(Icons.sort),
-                  onSelected: (option) =>
-                      context.read<ProductProvider>().setSortOption(option),
-                  itemBuilder: (context) {
-                    final current = context.read<ProductProvider>().sortOption;
-                    return const [
-                      MapEntry(ProductSortOption.name, 'Name'),
-                      MapEntry(ProductSortOption.category, 'Category'),
-                      MapEntry(ProductSortOption.quantity, 'Quantity'),
-                      MapEntry(ProductSortOption.price, 'Price'),
-                    ]
-                        .map((entry) => CheckedPopupMenuItem(
-                              value: entry.key,
-                              checked: entry.key == current,
-                              child: Text(entry.value),
-                            ))
-                        .toList();
+                const SizedBox(height: 8),
+                Consumer2<ProductProvider, CategoryProvider>(
+                  builder: (context, productProvider, categoryProvider, _) {
+                    return DropdownButtonFormField<int?>(
+                      initialValue: productProvider.categoryFilter,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('All Category'),
+                        ),
+                        ...categoryProvider.categories.map(
+                          (c) => DropdownMenuItem<int?>(
+                            value: c.id,
+                            child: Text(c.name),
+                          ),
+                        ),
+                      ],
+                      onChanged: productProvider.setCategoryFilter,
+                    );
                   },
                 ),
               ],

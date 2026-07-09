@@ -23,7 +23,9 @@ const _currentFeatures = [
   ),
   _Feature(
     'Products & Categories',
-    'Full CRUD with photos, barcodes, and category-based organization.',
+    'Full CRUD with photos, barcodes, and category-based organization. '
+        'Searchable and filterable by category, with a tap-to-zoom photo '
+        'viewer.',
   ),
   _Feature(
     'Stock In / Stock Out',
@@ -35,7 +37,8 @@ const _currentFeatures = [
   ),
   _Feature(
     'Reports',
-    'Sales reports over a chosen date range, exportable to Excel.',
+    'Sales reports and receipts over a chosen date range, plus an Inventory '
+        'Stock report by category — all exportable to Excel.',
   ),
   _Feature(
     'Backup & Restore',
