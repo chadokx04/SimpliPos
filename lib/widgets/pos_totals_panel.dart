@@ -19,6 +19,7 @@ class PosTotalsPanel extends StatelessWidget {
     required this.onHold,
     required this.onCheckout,
     required this.canSubmit,
+    this.canCheckout = true,
   });
 
   final PosTotals totals;
@@ -28,6 +29,12 @@ class PosTotalsPanel extends StatelessWidget {
   final VoidCallback onHold;
   final VoidCallback onCheckout;
   final bool canSubmit;
+
+  /// Separate from [canSubmit]: holding a cart never needs stock (per POS
+  /// spec, cart mutations don't check stock), but checkout does — set this
+  /// to `false` to disable just the Checkout button (e.g. a resumed held
+  /// sale with a line that's since gone out of stock).
+  final bool canCheckout;
 
   Future<void> _editWholeSaleDiscount(BuildContext context) async {
     final result = await showModalBottomSheet<(DiscountType, double)>(
@@ -95,7 +102,7 @@ class PosTotalsPanel extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton(
-                    onPressed: canSubmit ? onCheckout : null,
+                    onPressed: canSubmit && canCheckout ? onCheckout : null,
                     child: const Text('Checkout'),
                   ),
                 ),

@@ -16,9 +16,15 @@ class CartLineTile extends StatelessWidget {
     required this.onPriceChanged,
     required this.onDiscountChanged,
     required this.onRemove,
+    this.availableQuantity,
   });
 
   final CartLine line;
+
+  /// The product's current stock, used to cap quantity edits. `null` (e.g.
+  /// product since deleted) leaves the edit uncapped — checkout still
+  /// validates stock as the final backstop.
+  final int? availableQuantity;
   final ValueChanged<int> onQuantityChanged;
   final ValueChanged<double> onPriceChanged;
   final void Function(DiscountType? type, double? value) onDiscountChanged;
@@ -31,6 +37,7 @@ class CartLineTile extends StatelessWidget {
       builder: (_) => CartLineEditSheet(
         title: 'Quantity — ${line.productName}',
         initialValue: line.quantity.toDouble(),
+        maxValue: availableQuantity?.toDouble(),
       ),
     );
     if (result != null) onQuantityChanged(result.round());
@@ -61,6 +68,14 @@ class CartLineTile extends StatelessWidget {
     if (result != null) onDiscountChanged(result.$1, result.$2);
   }
 
+  /// True when this line asks for more than the product currently has in
+  /// stock (including exactly 0 available) — surfaced so a resumed held
+  /// sale can't be checked out against stock that ran out while it sat on
+  /// hold. `null` [availableQuantity] (e.g. product since deleted) is left
+  /// unflagged here; checkout still validates it as the final backstop.
+  bool get _insufficientStock =>
+      availableQuantity != null && line.quantity > availableQuantity!;
+
   @override
   Widget build(BuildContext context) {
     final hasDiscount = line.discountType != null && line.discountValue != null;
@@ -71,16 +86,22 @@ class CartLineTile extends StatelessWidget {
         : null;
     final hasPhoto = line.photoPath != null && File(line.photoPath!).existsSync();
     final scheme = Theme.of(context).colorScheme;
+    final insufficientStock = _insufficientStock;
 
     return ListTile(
       onTap: () => _editQuantity(context),
+      tileColor: insufficientStock ? scheme.errorContainer.withValues(alpha: 0.4) : null,
       leading: CircleAvatar(
         radius: 20,
-        backgroundColor: scheme.secondaryContainer,
+        backgroundColor:
+            insufficientStock ? scheme.errorContainer : scheme.secondaryContainer,
         backgroundImage: hasPhoto ? FileImage(File(line.photoPath!)) : null,
         child: hasPhoto
             ? null
-            : Icon(Icons.inventory_2_outlined, color: scheme.onSecondaryContainer),
+            : Icon(
+                insufficientStock ? Icons.warning_amber_rounded : Icons.inventory_2_outlined,
+                color: insufficientStock ? scheme.onErrorContainer : scheme.onSecondaryContainer,
+              ),
       ),
       title: Text(line.productName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Wrap(
@@ -93,6 +114,13 @@ class CartLineTile extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               label: Text(discountLabel),
               onDeleted: () => onDiscountChanged(null, null),
+            ),
+          if (insufficientStock)
+            Text(
+              availableQuantity == 0
+                  ? 'Out of stock'
+                  : 'Only $availableQuantity in stock',
+              style: TextStyle(color: scheme.error, fontWeight: FontWeight.bold),
             ),
         ],
       ),

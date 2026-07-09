@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/stock_movement.dart';
 import '../providers/pos_provider.dart';
 import '../providers/product_provider.dart';
+import '../screens/about/about_screen.dart';
 import '../screens/app_lock/app_lock_settings_screen.dart';
 import '../screens/backup/backup_restore_screen.dart';
 import '../screens/categories/categories_screen.dart';
@@ -18,6 +19,7 @@ import '../screens/products/product_detail_screen.dart';
 import '../screens/products/product_form_screen.dart';
 import '../screens/products/products_screen.dart';
 import '../screens/reports/reports_screen.dart';
+import '../screens/reports/sales_receipts_screen.dart';
 import '../screens/reports/sales_report_screen.dart';
 import '../screens/scanner/scanner_screen.dart';
 import '../screens/stock/stock_movement_screen.dart';
@@ -67,6 +69,11 @@ final GoRouter appRouter = GoRouter(
       ],
     ),
     GoRoute(
+      path: '/about',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const AboutScreen(),
+    ),
+    GoRoute(
       path: '/app-lock',
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AppLockSettingsScreen(),
@@ -101,9 +108,21 @@ final GoRouter appRouter = GoRouter(
             return '${product.name} is not available for sale';
           }
 
+          // Cap at stock minus what the cart already holds, so repeated
+          // scans of the same product can never exceed what's available.
+          final remaining = product.quantity -
+              scanContext.read<PosProvider>().quantityInCart(product.id!);
+          if (remaining <= 0) {
+            return 'All ${product.quantity} in stock of ${product.name} '
+                'are already in the cart';
+          }
+
           final quantity = await showDialog<int>(
             context: scanContext,
-            builder: (_) => QuantityDialog(productName: product.name),
+            builder: (_) => QuantityDialog(
+              productName: product.name,
+              maxQuantity: remaining,
+            ),
           );
           if (!scanContext.mounted) return '';
           if (quantity == null) {
@@ -122,6 +141,11 @@ final GoRouter appRouter = GoRouter(
       path: '/reports/sales',
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const SalesReportScreen(),
+    ),
+    GoRoute(
+      path: '/reports/receipts',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const SalesReceiptsScreen(),
     ),
     GoRoute(
       path: '/pos/held',

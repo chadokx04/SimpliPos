@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../db/database_helper.dart';
@@ -97,7 +98,29 @@ class AppDrawer extends StatelessWidget {
                     height: 48,
                   ),
                   const SizedBox(width: 12),
-                  Text('SimpliPos', style: Theme.of(context).textTheme.titleLarge),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SimpliPos',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      FutureBuilder<PackageInfo>(
+                        future: PackageInfo.fromPlatform(),
+                        builder: (context, snapshot) {
+                          final info = snapshot.data;
+                          if (info == null) return const SizedBox.shrink();
+                          return Text(
+                            'v${info.version} (${info.buildNumber})',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -105,6 +128,14 @@ class AppDrawer extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('About'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/about');
+                    },
+                  ),
                   ListTile(
                     leading: const Icon(Icons.lock_outline),
                     title: const Text('App Lock'),

@@ -21,3 +21,17 @@ const String kPosCartStatePrefsKey = 'pos_cart_state';
 /// code itself).
 const String kAppLockEnabledPrefsKey = 'app_lock_enabled';
 const String kAppLockPinHashPrefsKey = 'app_lock_pin_hash';
+
+/// SharedPreferences keys backing [AutoBackupProvider]'s enabled switch and
+/// user-configurable run interval.
+const String kAutoBackupEnabledPrefsKey = 'auto_backup_enabled';
+const String kAutoBackupIntervalSecondsPrefsKey = 'auto_backup_interval_seconds';
+
+/// Interval auto backup runs at until the user changes it in Backup &
+/// Restore, and the shortest interval the picker allows (guards against an
+/// accidental near-0 value hammering the database with backups).
+const int kAutoBackupDefaultIntervalSeconds = 30;
+const int kAutoBackupMinIntervalSeconds = 10;
+
+/// How many of its own backups auto backup keeps before evicting the oldest.
+const int kAutoBackupMaxCount = 10;
