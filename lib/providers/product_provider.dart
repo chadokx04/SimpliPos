@@ -86,6 +86,11 @@ class ProductProvider extends ChangeNotifier {
     return row == null ? null : Product.fromMap(row);
   }
 
+  Future<Product?> findByName(String name) async {
+    final row = await _db.getProductByName(name);
+    return row == null ? null : Product.fromMap(row);
+  }
+
   Future<String> getNextProductSku() => _db.getNextProductSku();
 
   Future<void> addProduct(Product product) async {

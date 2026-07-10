@@ -43,6 +43,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   String? _photoPath;
   File? _pickedPhotoFile;
   String? _barcodeError;
+  String? _nameError;
   String _pendingSku = '';
   bool _isLoading = true;
   bool _isSaving = false;
@@ -168,7 +169,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   }
 
   Future<void> _save() async {
-    setState(() => _barcodeError = null);
+    setState(() {
+      _barcodeError = null;
+      _nameError = null;
+    });
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,12 +181,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       return;
     }
 
+    final provider = context.read<ProductProvider>();
+
+    final existingName = await provider.findByName(_nameController.text.trim());
+    if (existingName != null && existingName.id != _existingProduct?.id) {
+      setState(() => _nameError = 'A product with this name already exists');
+      return;
+    }
+    if (!mounted) return;
+
     final barcode = _barcodeController.text.trim().isEmpty
         ? null
         : _barcodeController.text.trim();
 
     if (barcode != null) {
-      final existing = await context.read<ProductProvider>().findByBarcode(barcode);
+      final existing = await provider.findByBarcode(barcode);
       if (existing != null && existing.id != _existingProduct?.id) {
         setState(() => _barcodeError =
             'Already used by "${existing.name}"');
@@ -222,7 +235,6 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       createdAt: _existingProduct?.createdAt ?? DateTime.now().toIso8601String(),
     );
 
-    final provider = context.read<ProductProvider>();
     try {
       if (_isEditing) {
         await provider.updateProduct(product);
@@ -281,7 +293,14 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             TextFormField(
               controller: _nameController,
               focusNode: _nameFocusNode,
-              decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+              onChanged: (_) {
+                if (_nameError != null) setState(() => _nameError = null);
+              },
+              decoration: InputDecoration(
+                labelText: 'Name',
+                border: const OutlineInputBorder(),
+                errorText: _nameError,
+              ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
             ),
             const SizedBox(height: 16),

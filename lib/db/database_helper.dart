@@ -25,7 +25,7 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._internal();
 
   static const _dbName = 'stockflow.db';
-  static const _dbVersion = 4;
+  static const _dbVersion = 5;
 
   // Memoizes the *future*, not just the resolved Database — the getter is
   // called concurrently by every provider's startup load, and caching only
@@ -204,6 +204,33 @@ class DatabaseHelper {
         'CREATE UNIQUE INDEX idx_products_barcode ON products (barcode)',
       );
     }
+    if (oldVersion < 5) {
+      await _renameDuplicateProductNames(db);
+    }
+  }
+
+  /// One-time cleanup: names aren't DB-enforced unique (see
+  /// getProductByName), but pre-existing case-insensitive duplicates are
+  /// still disambiguated here so old data matches the new "no duplicate
+  /// names" policy the add/edit form now enforces going forward.
+  Future<void> _renameDuplicateProductNames(Database db) async {
+    final rows = await db.query('products', columns: ['id', 'name'], orderBy: 'id ASC');
+    final seenCounts = <String, int>{};
+    for (final row in rows) {
+      final id = row['id'] as int;
+      final name = row['name'] as String;
+      final key = name.trim().toLowerCase();
+      final count = (seenCounts[key] ?? 0) + 1;
+      seenCounts[key] = count;
+      if (count > 1) {
+        await db.update(
+          'products',
+          {'name': '$name ($count)'},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    }
   }
 
   // ---------------- Categories ----------------
@@ -307,6 +334,21 @@ class DatabaseHelper {
       LEFT JOIN categories c ON c.id = p.category_id
       WHERE p.barcode = ?
     ''', [barcode]);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  /// Case-insensitive, whitespace-trimmed match — used by the add/edit form
+  /// to block duplicate names. Not a DB-level UNIQUE constraint (unlike sku
+  /// and barcode) since this is a soft, app-layer policy rather than a data
+  /// integrity guarantee.
+  Future<Map<String, dynamic>?> getProductByName(String name) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT p.*, c.name AS category_name
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+    ''', [name]);
     return rows.isEmpty ? null : rows.first;
   }
 
